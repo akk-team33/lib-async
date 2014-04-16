@@ -2,12 +2,12 @@ package net.team33.async.consumer;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+import static java.lang.String.format;
+
 /**
  * Service to launch {@link Runnable} instances within a distinct named new Thread
  */
-public class Launcher {
-
-    private static final String NAME_FORMAT = "%s[%d:%d]";
+class Launcher {
 
     /**
      * Number of totally created instances of this class.
@@ -15,13 +15,14 @@ public class Launcher {
      * Anyway - doesn't matter!
      */
     private static final AtomicLong INSTANCES = new AtomicLong(0);
+    private static final String TO_STRING_FORMAT = "Launcher(instance(%s), started(%s))";
+    private static final String NAME_FORMAT = "%s[%s:%s]";
 
     /**
      * 1-based unique index number of this instance.
      * Used to generate unique names for new worker threads.
      */
     private final long instance = INSTANCES.incrementAndGet();
-
     /**
      * Number of totally started threads (by this instance).
      * May overflow (after several million years ;-)
@@ -30,19 +31,24 @@ public class Launcher {
      */
     private final AtomicLong started = new AtomicLong(0);
 
-    public final Thread launch(final Runnable worker) {
-        return launch(worker, instance, started.incrementAndGet());
+    @Override
+    public final String toString() {
+        return format(TO_STRING_FORMAT, instance, started);
     }
 
-    private static Thread launch(final Runnable runnable, final long major, final long minor) {
-        return launch(runnable, String.format(NAME_FORMAT, runnable.getClass().getName(), major, minor));
+    final Thread launch(final Runnable worker) {
+        return start(worker, instance, started.incrementAndGet());
     }
 
-    private static Thread launch(final Runnable runnable, final String name) {
-        return launch(new Thread(runnable, name));
+    private static Thread start(final Runnable runnable, final long major, final long minor) {
+        return start(runnable, format(NAME_FORMAT, runnable.getClass().getName(), major, minor));
     }
 
-    private static Thread launch(final Thread thread) {
+    private static Thread start(final Runnable runnable, final String name) {
+        return start(new Thread(runnable, name));
+    }
+
+    private static Thread start(final Thread thread) {
         thread.start();
         return thread;
     }
