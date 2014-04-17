@@ -1,6 +1,5 @@
 package net.team33.async.consumer;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -16,7 +15,9 @@ import java.util.stream.Stream;
 
 import static java.util.Collections.emptyList;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings({"TypeMayBeWeakened", "AccessingNonPublicFieldOfAnotherObject"})
 public class SchedulerTest {
@@ -33,37 +34,103 @@ public class SchedulerTest {
     private static final List<Throwable> NO_PROBLEMS = emptyList();
 
     static {
-        MESSAGES = new Object[]{MESSAGE_00, MESSAGE_01, MESSAGE_02, MESSAGE_03, MESSAGE_04, MESSAGE_05, MESSAGE_06};
+        MESSAGES = new Object[]{MESSAGE_01, MESSAGE_02, MESSAGE_03, MESSAGE_04, MESSAGE_05, MESSAGE_06};
     }
+
+    private static final int TIMEOUT_1000 = 1000;
+    private static final String PROBLEM_TIMEOUT = "subject.join(%d) -> timeout";
+    private static final String PROBLEM_EXPECTED = "expected: %s but was: %s";
 
     @Test
     public void testGetProblems() throws Exception {
-        Assert.fail("Not yet implemented");
+        fail("Not yet implemented");
     }
 
     @Test
     public void testThrowProblems() throws Exception {
-        Assert.fail("Not yet implemented");
+        fail("Not yet implemented");
     }
 
     @Test
     public void testToString() throws Exception {
-        Assert.fail("Not yet implemented");
+        fail("Not yet implemented");
     }
 
     @Test
     public void testGetRunning() throws Exception {
-        Assert.fail("Not yet implemented");
+        fail("Not yet implemented");
     }
 
     @Test
     public void testGetLoad() throws Exception {
-        Assert.fail("Not yet implemented");
+        fail("Not yet implemented");
     }
 
     @Test
     public void testGetOverhead() throws Exception {
-        Assert.fail("Not yet implemented");
+        fail("Not yet implemented");
+    }
+
+    @Test
+    public final void testAccept1() throws InterruptedException, IllegalArgumentException {
+        assertEquals(
+                emptyList(),
+                testAccept(Strategy.quadratic(1), origin -> new HashSet(origin))
+        );
+    }
+
+    @Test
+    public final void testAccept2() throws InterruptedException, IllegalArgumentException {
+        assertEquals(
+                emptyList(),
+                testAccept(Strategy.linear(1, 1), origin -> new ArrayList(origin))
+        );
+    }
+
+    @Test
+    public final void testAccept3() throws InterruptedException, IllegalArgumentException {
+        assertNotEquals(
+                emptyList(),
+                testAccept(Strategy.linear(1), origin -> new ArrayList(origin))
+        );
+    }
+
+    private static <N> List<Object> testAccept(final Strategy strategy,
+                                               final Function<Collection<?>, N> normal) throws InterruptedException {
+
+        return testAccept(new LinkedList<>(), strategy, normal);
+    }
+
+    private static <N> List<Object> testAccept(final List<Object> problems, final Strategy strategy,
+                                               final Function<Collection<?>, N> normal)
+            throws InterruptedException {
+
+        final Collector target = new Collector();
+        final Scheduler<Object> subject = new Scheduler<>(strategy, new Scheduler<>(strategy, target));
+        final List<Object> messages = newMessages(1000);
+
+        messages.stream().forEach(subject);
+
+        if (subject.join(TIMEOUT_1000)) {
+            final N accepted = normal.apply(target.accepted);
+            final N expected = normal.apply(messages);
+            if (!accepted.equals(expected)) {
+                problems.add(String.format(PROBLEM_EXPECTED, expected, accepted));
+            }
+
+        } else {
+            problems.add(String.format(PROBLEM_TIMEOUT, TIMEOUT_1000));
+        }
+
+        return problems;
+    }
+
+    private static List<Object> newMessages(final int size) {
+        final List<Object> result = new ArrayList<>(size);
+        for (int i = 0; i < size; ++i) {
+            result.add(i);
+        }
+        return result;
     }
 
     /**
@@ -99,27 +166,27 @@ public class SchedulerTest {
 
     @Test
     public void testJoin() throws Exception {
-        Assert.fail("Not yet implemented");
+        fail("Not yet implemented");
     }
 
     @Test
     public void testStart() throws Exception {
-        Assert.fail("Not yet implemented");
+        fail("Not yet implemented");
     }
 
     @Test
     public void testStop() throws Exception {
-        Assert.fail("Not yet implemented");
+        fail("Not yet implemented");
     }
 
     @Test
     public void testStopASAP() throws Exception {
-        Assert.fail("Not yet implemented");
+        fail("Not yet implemented");
     }
 
     @Test
     public void testIsStopped() throws Exception {
-        Assert.fail("Not yet implemented");
+        fail("Not yet implemented");
     }
 
     private static class Collector implements Consumer<Object> {
@@ -128,7 +195,6 @@ public class SchedulerTest {
         @Override
         public final void accept(final Object o) {
             accepted.add(o);
-            Thread.yield();
         }
     }
 }
