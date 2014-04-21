@@ -1,8 +1,10 @@
 package net.team33.async.consumer;
 
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiFunction;
 
 import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Service to launch {@link Runnable} instances within a distinct named new Thread
@@ -31,6 +33,17 @@ class Launcher {
      */
     private final AtomicLong started = new AtomicLong(0);
 
+    private final BiFunction<Runnable, String, Thread> newThread;
+
+    Launcher(BiFunction<Runnable, String, Thread> newThread) {
+        this.newThread = requireNonNull(newThread);
+    }
+
+    private static Thread start(final Thread thread) {
+        thread.start();
+        return thread;
+    }
+
     @Override
     public final String toString() {
         return format(TO_STRING_FORMAT, instance, started);
@@ -40,16 +53,11 @@ class Launcher {
         return start(worker, instance, started.incrementAndGet());
     }
 
-    private static Thread start(final Runnable runnable, final long major, final long minor) {
+    private Thread start(final Runnable runnable, final long major, final long minor) {
         return start(runnable, format(NAME_FORMAT, runnable.getClass().getName(), major, minor));
     }
 
-    private static Thread start(final Runnable runnable, final String name) {
-        return start(new Thread(runnable, name));
-    }
-
-    private static Thread start(final Thread thread) {
-        thread.start();
-        return thread;
+    private Thread start(final Runnable runnable, final String name) {
+        return start(newThread.apply(runnable, name));
     }
 }

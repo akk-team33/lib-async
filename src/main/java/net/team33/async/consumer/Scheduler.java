@@ -1,16 +1,11 @@
 package net.team33.async.consumer;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Queue;
+import java.util.*;
 import java.util.function.Consumer;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static net.team33.async.consumer.Payload.payload;
 
 /**
  * Generic {@link java.util.function.Consumer Consumer} implementation for the asynchronous processing of
@@ -25,7 +20,7 @@ public class Scheduler<MSG> implements Consumer<MSG> {
     private static final String TO_STRING_FORMAT = "%s(%s)";
 
     private final Collection<Throwable> problems = new LinkedList<>();
-    private final Launcher launcher = new Launcher();
+    private final Launcher launcher = new Launcher(Thread::new);
     private final Runnable worker = new Worker();
     private final Queue<MSG> queue = new ArrayDeque<>(0);
     private final Strategy strategy;
@@ -57,6 +52,20 @@ public class Scheduler<MSG> implements Consumer<MSG> {
         this.target = requireNonNull(target);
     }
 
+    private static void throwProblems(final Iterator<Throwable> iterator) throws Throwable {
+        if (iterator.hasNext()) {
+            final Throwable head = iterator.next();
+            while (iterator.hasNext()) {
+                head.addSuppressed(iterator.next());
+            }
+            throw head;
+        }
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
     /**
      * Retrieves a list of all problems that may have been occurred during asynchronous processing of incoming messages.
      */
@@ -74,16 +83,6 @@ public class Scheduler<MSG> implements Consumer<MSG> {
     public final void throwProblems() throws Throwable {
         synchronized (problems) {
             throwProblems(problems.iterator());
-        }
-    }
-
-    private static void throwProblems(final Iterator<Throwable> iterator) throws Throwable {
-        if(iterator.hasNext()) {
-            final Throwable head = iterator.next();
-            while (iterator.hasNext()) {
-                head.addSuppressed(iterator.next());
-            }
-            throw head;
         }
     }
 
@@ -135,16 +134,17 @@ public class Scheduler<MSG> implements Consumer<MSG> {
      * or necessary.
      *
      * @param message The message, not {@code null}.
+     *
      * @throws NullPointerException  when {@code message} is {@code null}.
      * @throws IllegalStateException if {@linkplain #stop() stopped} and not
      *                               yet {@linkplain #start() restarted}
-     *                               (basically unspecific for Listeners).
+     *                               (basically unspecific for Consumers).
      */
     @Override
     public final synchronized void accept(final MSG message) throws NullPointerException, IllegalStateException {
         if (ready) {
             this.queue.add(message);
-            if (strategy.isStartCondition(started, queue.size() + working)) {
+            if (strategy.test(payload(started, queue.size() + working))) {
                 started += 1;
                 launcher.launch(worker);
             }
@@ -265,6 +265,9 @@ public class Scheduler<MSG> implements Consumer<MSG> {
 
     public final synchronized boolean isStopped() {
         return !ready;
+    }
+
+    public static class Builder {
     }
 
     private class Worker implements Runnable {
