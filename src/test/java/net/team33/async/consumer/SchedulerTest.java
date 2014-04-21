@@ -29,10 +29,11 @@ public class SchedulerTest {
     @Test
     public final void testAccept() throws InterruptedException {
         assertEquals(
-                tester().result(),
-                tester().testAccept(Strategy.linear(1), 1000, HashSet::new)
-                        .testAccept(Strategy.linear(1), 1000, ArrayList::new)
-                        .testAccept(Strategy.linear(1000), 1, ArrayList::new)
+                Result.NO_PROBLEMS,
+                tester().testAccept(Strategy.linear(1), 1001, HashSet::new, true)
+                        .testAccept(Strategy.linear(1), 1002, ArrayList::new, false)
+                        .testAccept(Strategy.linear(1, 1), 1003, ArrayList::new, true)
+                        .testAccept(Strategy.linear(1004), 1, ArrayList::new, true)
                         .result()
         );
     }
@@ -51,7 +52,8 @@ public class SchedulerTest {
     private static class Tester {
         private final Result result = new Result();
 
-        <N> Tester testAccept(final Strategy strategy, final int size, final Function<Collection<?>, N> normal)
+        <N> Tester testAccept(
+                final Strategy strategy, final int size, final Function<Collection<?>, N> normal, final boolean equals)
                 throws InterruptedException {
 
             final Aggregator aggregator = new Aggregator();
@@ -64,7 +66,8 @@ public class SchedulerTest {
             result.assertEquals(
                     () -> String.format("[strategy(%s), size(%d)]", strategy, size),
                     normal.apply(input),
-                    normal.apply(aggregator.accepted)
+                    normal.apply(aggregator.accepted),
+                    equals
             );
 
             return this;

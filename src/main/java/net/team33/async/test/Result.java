@@ -25,7 +25,6 @@ public class Result {
 
     private static String toString(final Iterator<Object> iterator) {
         final StringBuilder result = new StringBuilder(0);
-        result.append("[");
         if (iterator.hasNext()) {
             appendNext(iterator, result);
             while (iterator.hasNext()) {
@@ -34,12 +33,11 @@ public class Result {
             }
             result.append("\n");
         }
-        result.append("]");
         return result.toString();
     }
 
     private static void appendNext(final Iterator<Object> iterator, final StringBuilder result) {
-        result.append("\n-   ");
+        result.append("\n- ");
         result.append(iterator.next());
     }
 
@@ -63,9 +61,43 @@ public class Result {
     }
 
     public Result assertEquals(final Supplier<String> message, final Object expected, final Object result) {
-        if (!Objects.equals(expected, result)) {
-            problems.add(String.format("%s: expected <%s> but was <%s>", message.get(), expected, result));
+        return assertEquals(message, expected, result, true);
+    }
+
+    public Result assertEquals(
+            final Supplier<String> message, final Object expected, final Object result, final boolean equals) {
+
+        if (equals != Objects.equals(expected, result)) {
+            problems.add(new FailEquals(message.get(), expected, result, equals));
         }
+
         return this;
+    }
+
+    private static class FailEquals {
+        private final String message;
+        private final Object expected;
+        private final Object result;
+        private final boolean equals;
+
+        public FailEquals(final String message, final Object expected, final Object result, final boolean equals) {
+            this.message = message;
+            this.expected = expected;
+            this.result = result;
+            this.equals = equals;
+        }
+
+        @Override
+        public String toString() {
+            if (equals) {
+                return String.format("%s\n" +
+                        "  EXPECTED: <%s>\n" +
+                        "  BUT WAS:  <%s>", message, expected, result);
+            } else {
+                return String.format("%s\n" +
+                        "  UNEXPECTED: <%s>\n" +
+                        "  BUT WAS:    <%s>", message, expected, result);
+            }
+        }
     }
 }
